@@ -51,6 +51,7 @@
 #include "mono/metadata/abi-details.h"
 #include "mono/metadata/custom-attrs-internals.h"
 #include "mono/metadata/loader-internals.h"
+#include "mono/metadata/marshal-hooks.h"
 #include "mono/utils/mono-counters.h"
 #include "mono/utils/mono-tls.h"
 #include "mono/utils/mono-memory-model.h"
@@ -5641,8 +5642,8 @@ mono_marshal_alloc_hglobal_error (gsize size, MonoError *error)
 	return p;
 }
 
-void*
-ves_icall_System_Runtime_InteropServices_Marshal_AllocHGlobal (gsize size)
+static void*
+mono_marshal_allochglobal_default (gsize size)
 {
 	ERROR_DECL (error);
 	void* result = mono_marshal_alloc_hglobal_error (size, error);
@@ -5660,8 +5661,8 @@ mono_marshal_realloc_hglobal (gpointer ptr, size_t size)
 
 #endif
 
-gpointer
-ves_icall_System_Runtime_InteropServices_Marshal_ReAllocHGlobal (gpointer ptr, gsize size)
+static gpointer
+mono_marshal_reallochglobal_default (gpointer ptr, gsize size)
 {
 	gpointer res = ptr ? mono_marshal_realloc_hglobal (ptr, size) : NULL;
 
@@ -5684,14 +5685,49 @@ mono_marshal_free_hglobal (gpointer ptr)
 
 #endif
 
-void
-ves_icall_System_Runtime_InteropServices_Marshal_FreeHGlobal (void *ptr)
+static void
+mono_marshal_freehglobal_default (void *ptr)
 {
 	mono_marshal_free_hglobal (ptr);
 }
 
+static MonoMarshalAllocHGlobalFunc mono_marshal_allochglobal_fptr = mono_marshal_allochglobal_default;
+static MonoMarshalReAllocHGlobalFunc mono_marshal_reallochglobal_fptr = mono_marshal_reallochglobal_default;
+static MonoMarshalFreeHGlobalFunc mono_marshal_freehglobal_fptr = mono_marshal_freehglobal_default;
+
 void*
-ves_icall_System_Runtime_InteropServices_Marshal_AllocCoTaskMem (int size)
+ves_icall_System_Runtime_InteropServices_Marshal_AllocHGlobal (gsize size)
+{
+    return mono_marshal_allochglobal_fptr(size);
+}
+
+gpointer
+ves_icall_System_Runtime_InteropServices_Marshal_ReAllocHGlobal (gpointer ptr, gsize size)
+{
+    return mono_marshal_reallochglobal_fptr(ptr, size);
+}
+
+void
+ves_icall_System_Runtime_InteropServices_Marshal_FreeHGlobal (void *ptr)
+{
+    mono_marshal_freehglobal_fptr(ptr);
+}
+
+MONO_API void
+mono_install_alloc_hglobal_funcs(MonoMarshalAllocHGlobalFunc alloc_fprt,
+    MonoMarshalReAllocHGlobalFunc realloc_fptr,
+    MonoMarshalFreeHGlobalFunc free_fptr)
+{
+    if (!(alloc_fprt && realloc_fptr && free_fptr))
+        g_assert_not_reached();
+
+    mono_marshal_allochglobal_fptr = alloc_fprt;
+    mono_marshal_reallochglobal_fptr = realloc_fptr;
+    mono_marshal_freehglobal_fptr = free_fptr;
+}
+
+static void*
+mono_marshal_alloccotaskmem_default (int size)
 {
 	void *res = mono_marshal_alloc_co_task_mem (size);
 
@@ -5723,8 +5759,8 @@ ves_icall_System_Runtime_InteropServices_Marshal_AllocCoTaskMemSize (gsize size)
 	return res;
 }
 
-void
-ves_icall_System_Runtime_InteropServices_Marshal_FreeCoTaskMem (void *ptr)
+static void
+mono_marshal_freecotaskmem_default (void *ptr)
 {
 	mono_marshal_free_co_task_mem (ptr);
 }
@@ -5738,8 +5774,8 @@ mono_marshal_realloc_co_task_mem (gpointer ptr, size_t size)
 }
 #endif
 
-gpointer
-ves_icall_System_Runtime_InteropServices_Marshal_ReAllocCoTaskMem (gpointer ptr, int size)
+static gpointer
+mono_marshal_realloccotaskmem_default (gpointer ptr, int size)
 {
 	void *res = mono_marshal_realloc_co_task_mem (ptr, size);
 
@@ -5750,6 +5786,42 @@ ves_icall_System_Runtime_InteropServices_Marshal_ReAllocCoTaskMem (gpointer ptr,
 	}
 
 	return res;
+}
+
+static MonoMarshalAllocCoTaskMemFunc mono_marshal_alloccotaskmem_fptr = mono_marshal_alloccotaskmem_default;
+static MonoMarshalReAllocCoTaskMemFunc mono_marshal_realloccotaskmem_fptr = mono_marshal_realloccotaskmem_default;
+static MonoMarshalFreeCoTaskMemFunc mono_marshal_freecotaskmem_fptr = mono_marshal_freecotaskmem_default;
+
+void*
+ves_icall_System_Runtime_InteropServices_Marshal_AllocCoTaskMem (int size)
+{
+    return mono_marshal_alloccotaskmem_fptr(size);
+}
+
+void
+ves_icall_System_Runtime_InteropServices_Marshal_FreeCoTaskMem(void *ptr)
+ves_icall_System_Runtime_InteropServices_Marshal_FreeCoTaskMem (void *ptr)
+{
+    mono_marshal_freecotaskmem_fptr(ptr);
+}
+
+gpointer
+ves_icall_System_Runtime_InteropServices_Marshal_ReAllocCoTaskMem (gpointer ptr, int size)
+{
+    return mono_marshal_realloccotaskmem_fptr(ptr, size);
+}
+
+MONO_API void
+mono_install_alloc_cotaskmem_funcs(MonoMarshalAllocCoTaskMemFunc alloc_fprt,
+    MonoMarshalReAllocCoTaskMemFunc realloc_fptr,
+    MonoMarshalFreeCoTaskMemFunc free_fptr)
+{
+    if (!(alloc_fprt && realloc_fptr && free_fptr))
+        g_assert_not_reached();
+
+    mono_marshal_alloccotaskmem_fptr = alloc_fprt;
+    mono_marshal_realloccotaskmem_fptr = realloc_fptr;
+    mono_marshal_freecotaskmem_fptr = free_fptr;
 }
 
 #ifndef ENABLE_NETCORE

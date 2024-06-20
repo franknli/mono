@@ -273,6 +273,7 @@ common_sources = \
 	lock-tracer.h		\
 	marshal.c		\
 	marshal.h		\
+	marshal-hooks.h 	\
 	marshal-internals.h \
 	mempool.c		\
 	mempool.h		\

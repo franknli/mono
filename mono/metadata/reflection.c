@@ -614,6 +614,8 @@ method_object_construct (MonoDomain *domain, MonoClass *refclass, MonoMethod *me
 {
 	error_init (error);
 	g_assert (refclass != NULL);
+	// ANSYS patch
+	goto_if (method == NULL, fail);
 	/*
 	 * We use the same C representation for methods and constructors, but the type 
 	 * name in C# is different.

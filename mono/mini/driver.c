@@ -2097,7 +2097,8 @@ mono_main (int argc, char* argv[])
 #endif
 #endif
 
-	setlocale (LC_ALL, "");
+	// ANSYS patch
+	// setlocale (LC_ALL, "");
 
 #if TARGET_OSX
 	darwin_change_default_file_handles ();
