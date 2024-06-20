@@ -5799,7 +5799,6 @@ ves_icall_System_Runtime_InteropServices_Marshal_AllocCoTaskMem (int size)
 }
 
 void
-ves_icall_System_Runtime_InteropServices_Marshal_FreeCoTaskMem(void *ptr)
 ves_icall_System_Runtime_InteropServices_Marshal_FreeCoTaskMem (void *ptr)
 {
     mono_marshal_freecotaskmem_fptr(ptr);
